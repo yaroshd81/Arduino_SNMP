@@ -15,7 +15,7 @@ static SNMP_PERMISSION getPermissionOfRequest(const SNMPPacket& request, const s
     return requestPermission;
 }
 
-SNMP_ERROR_RESPONSE handlePacket(uint8_t* buffer, int packetLength, int* responseLength, int max_packet_size, std::deque<ValueCallback*> &callbacks, const std::string& _community, const std::string& _readOnlyCommunity, informCB informCallback, void* ctx){
+SNMP_ERROR_RESPONSE handlePacket(uint8_t* buffer, int packetLength, int* responseLength, int max_packet_size, std::deque<ValueCallback*> &callbacks, const std::string& _community, const std::string& _readOnlyCommunity, bool &flagSaveIpForSet, informCB informCallback, void* ctx){
     SNMPPacket request;
 
     SNMP_PACKET_PARSE_ERROR parseResult = request.parseFrom(buffer, packetLength);
@@ -73,6 +73,8 @@ SNMP_ERROR_RESPONSE handlePacket(uint8_t* buffer, int packetLength, int* respons
                 pass = false;
                 globalError = NO_ACCESS;
             } else {
+                SNMP_LOGD("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                flagSaveIpForSet = true;
                 pass = handleSetRequestPDU(callbacks, request.varbindList, outResponseList, request.snmpVersion);
                 handleStatus = SNMP_SET_OCCURRED;
             }

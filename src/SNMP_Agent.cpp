@@ -26,6 +26,7 @@ void SNMPAgent::stop(){
 
 SNMP_ERROR_RESPONSE SNMPAgent::loop(){
     for(auto udp : _udp){
+        delay(1);
         int packetLength = udp->parsePacket();
         if(packetLength > 0){
             SNMP_LOGD("Received packet from: %s, of size: %d", udp->remoteIP().toString().c_str(), packetLength);
@@ -44,9 +45,15 @@ SNMP_ERROR_RESPONSE SNMPAgent::loop(){
             }
 
             int reponseLength = 0;
-            SNMP_ERROR_RESPONSE response = handlePacket(_packetBuffer, packetLength, &reponseLength, MAX_SNMP_PACKET_LENGTH, callbacks, _community, _readOnlyCommunity, informCallback, (void*)this);
+            
+            bool flagSaveIpForSet = false;
+            SNMP_ERROR_RESPONSE response = handlePacket(_packetBuffer, packetLength, &reponseLength, MAX_SNMP_PACKET_LENGTH, callbacks, _community, _readOnlyCommunity, flagSaveIpForSet, informCallback, (void*)this);
             if(response > 0 && response != SNMP_INFORM_RESPONSE_OCCURRED){
                 // send it
+                if (flagSaveIpForSet)
+                {
+                    fromIP = udp->remoteIP();
+                }
                 SNMP_LOGD("Built packet, sending back response to: %s, %d\n", udp->remoteIP().toString().c_str(), udp->remotePort());
                 udp->beginPacket(udp->remoteIP(), udp->remotePort());
                 udp->write(_packetBuffer, reponseLength);
@@ -69,7 +76,7 @@ SNMP_ERROR_RESPONSE SNMPAgent::loop(){
     return SNMP_NO_PACKET;
 }
 
-SortableOIDType* SNMPAgent::buildOIDWithPrefix(char* oid, bool overwritePrefix){
+SortableOIDType* SNMPAgent::buildOIDWithPrefix(const char* oid, bool overwritePrefix){
     SortableOIDType* newOid;
     if(this->oidPrefix.length() && !overwritePrefix){
         std::string temp;
@@ -86,7 +93,7 @@ SortableOIDType* SNMPAgent::buildOIDWithPrefix(char* oid, bool overwritePrefix){
     return nullptr;
 }
 
-ValueCallback* SNMPAgent::addReadWriteStringHandler(char* oid, char** value, size_t max_len, bool isSettable, bool overwritePrefix){
+ValueCallback* SNMPAgent::addReadWriteStringHandler(const char* oid, char** value, size_t max_len, bool isSettable, bool overwritePrefix){
     if(!value || !*value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
@@ -94,13 +101,20 @@ ValueCallback* SNMPAgent::addReadWriteStringHandler(char* oid, char** value, siz
     return addHandler(new StringCallback(oidType, value, max_len), isSettable);
 }
 
-ValueCallback *SNMPAgent::addReadOnlyStaticStringHandler(char *oid, std::string value, bool overwritePrefix) {
+ValueCallback *SNMPAgent::addReadOnlyStaticStringHandler(const char* oid, std::string value, bool overwritePrefix) {
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
     if(!oidType) return nullptr;
     return addHandler(new ReadOnlyStringCallback(oidType, value), false);
 }
 
-ValueCallback* SNMPAgent::addOpaqueHandler(char* oid, uint8_t* value, size_t data_len, bool isSettable, bool overwritePrefix){
+ValueCallback *SNMPAgent::addIpAddressHandler(const char* oid, IPAddress* value, bool overwritePrefix)
+{
+    SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
+    if(!oidType) return nullptr;
+    return addHandler(new IpAddressCallback(oidType, value), false);
+}
+
+ValueCallback* SNMPAgent::addOpaqueHandler(const char* oid, uint8_t* value, size_t data_len, bool isSettable, bool overwritePrefix){
     if(!value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
@@ -108,15 +122,15 @@ ValueCallback* SNMPAgent::addOpaqueHandler(char* oid, uint8_t* value, size_t dat
     return addHandler(new OpaqueCallback(oidType, value, data_len), isSettable);
 }
 
-ValueCallback* SNMPAgent::addIntegerHandler(char* oid, int* value, bool isSettable, bool overwritePrefix){
+ValueCallback* SNMPAgent::addIntegerHandler(const char* oid, int* value, const int minValue, const int maxValue, bool isSettable, bool overwritePrefix){
     if(!value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
     if(!oidType) return nullptr;
-    return addHandler(new IntegerCallback(oidType, value), isSettable);
+    return addHandler(new IntegerCallback(oidType, value, minValue, maxValue), isSettable);
 }
 
-ValueCallback* SNMPAgent::addTimestampHandler(char* oid, uint32_t* value, bool isSettable, bool overwritePrefix){
+ValueCallback* SNMPAgent::addTimestampHandler(const char* oid, uint32_t* value, bool isSettable, bool overwritePrefix){
     if(!value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
@@ -124,13 +138,13 @@ ValueCallback* SNMPAgent::addTimestampHandler(char* oid, uint32_t* value, bool i
     return addHandler(new TimestampCallback(oidType, value), isSettable);
 }
 
-ValueCallback* SNMPAgent::addOIDHandler(char* oid, std::string value, bool overwritePrefix){
+ValueCallback* SNMPAgent::addOIDHandler(const char* oid, std::string value, bool overwritePrefix){
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
     if(!oidType) return nullptr;
     return addHandler(new OIDCallback(oidType, value), false);
 }
 
-ValueCallback* SNMPAgent::addCounter64Handler(char* oid, uint64_t* value, bool overwritePrefix){
+ValueCallback* SNMPAgent::addCounter64Handler(const char* oid, uint64_t* value, bool overwritePrefix){
     if(!value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
@@ -138,7 +152,7 @@ ValueCallback* SNMPAgent::addCounter64Handler(char* oid, uint64_t* value, bool o
     return addHandler(new Counter64Callback(oidType, value), false);
 }
 
-ValueCallback* SNMPAgent::addCounter32Handler(char* oid, uint32_t* value, bool overwritePrefix){
+ValueCallback* SNMPAgent::addCounter32Handler(const char* oid, uint32_t* value, bool overwritePrefix){
     if(!value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
@@ -146,7 +160,7 @@ ValueCallback* SNMPAgent::addCounter32Handler(char* oid, uint32_t* value, bool o
     return addHandler(new Counter32Callback(oidType, value), false);
 }
 
-ValueCallback* SNMPAgent::addGuageHandler(char* oid, uint32_t* value, bool overwritePrefix){
+ValueCallback* SNMPAgent::addGuageHandler(const char* oid, uint32_t* value, bool overwritePrefix){
     if(!value) return nullptr;
 
     SortableOIDType* oidType = buildOIDWithPrefix(oid, overwritePrefix);
