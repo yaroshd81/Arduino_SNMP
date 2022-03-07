@@ -55,15 +55,16 @@ class SNMPAgent {
         std::string _community = "public";
         std::string _readOnlyCommunity = "";
         
-        ValueCallback* addIntegerHandler(char* oid, int* value, bool isSettable = false, bool overwritePrefix = false);
-        ValueCallback* addReadWriteStringHandler(char* oid, char** value, size_t max_len = 0, bool isSettable = false, bool overwritePrefix = false);
-        ValueCallback* addReadOnlyStaticStringHandler(char* oid, std::string value, bool overwritePrefix = false);
-        ValueCallback* addOpaqueHandler(char* oid, uint8_t* value, size_t data_len, bool isSettable = false, bool overwritePrefix = false);
-        ValueCallback* addTimestampHandler(char* oid, uint32_t* value, bool isSettable = false, bool overwritePrefix = false);
-        ValueCallback* addOIDHandler(char* oid, std::string value, bool overwritePrefix = false);
-        ValueCallback* addCounter64Handler(char* oid, uint64_t* value, bool overwritePrefix = false);
-        ValueCallback* addCounter32Handler(char* oid, uint32_t* value, bool overwritePrefix = false);
-        ValueCallback* addGuageHandler(char* oid, uint32_t* value, bool overwritePrefix);
+        ValueCallback* addIntegerHandler(const char* oid, int* value, const int minValue = 1, const int maxValue = 0, bool isSettable = false, bool overwritePrefix = false);
+        ValueCallback* addReadWriteStringHandler(const char* oid, char** value, size_t max_len = 0, bool isSettable = false, bool overwritePrefix = false);
+        ValueCallback* addReadOnlyStaticStringHandler(const char* oid, std::string value, bool overwritePrefix = false);
+        ValueCallback* addIpAddressHandler(const char* oid, IPAddress* value, bool overwritePrefix = false);
+        ValueCallback* addOpaqueHandler(const char* oid, uint8_t* value, size_t data_len, bool isSettable = false, bool overwritePrefix = false);
+        ValueCallback* addTimestampHandler(const char* oid, uint32_t* value, bool isSettable = false, bool overwritePrefix = false);
+        ValueCallback* addOIDHandler(const char* oid, std::string value, bool overwritePrefix = false);
+        ValueCallback* addCounter64Handler(const char* oid, uint64_t* value, bool overwritePrefix = false);
+        ValueCallback* addCounter32Handler(const char* oid, uint32_t* value, bool overwritePrefix = false);
+        ValueCallback* addGuageHandler(const char* oid, uint32_t* value, bool overwritePrefix);
 
         bool setUDP(UDP* udp);
         bool restartUDP();
@@ -88,6 +89,7 @@ class SNMPAgent {
 
         snmp_request_id_t sendTrapTo(SNMPTrap* trap, const IPAddress& ip, CallbackFunctionSendStatus callbackFunctionSendStatus, bool replaceQueuedRequests = true, int retries = 0, int delay_ms = 30000);
         static void markTrapDeleted(SNMPTrap* trap);
+        IPAddress fromIP{0,0,0,0};
         
     private:
         std::deque<ValueCallback*> callbacks;
@@ -101,7 +103,7 @@ class SNMPAgent {
         std::string oidPrefix;
         uint8_t _packetBuffer[MAX_SNMP_PACKET_LENGTH] = {0};
 
-        SortableOIDType* buildOIDWithPrefix(char* oid, bool overwritePrefix);
+        SortableOIDType* buildOIDWithPrefix(const char* oid, bool overwritePrefix);
 
         static std::list<SNMPAgent*> agents;
         std::list<struct InformItem*> informList;

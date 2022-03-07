@@ -116,6 +116,7 @@ class SNMPTrap : public SNMPPacket {
     bool sendTo(const IPAddress& ip, bool skipBuild = false){
         bool buildStatus = true;
         if(!skipBuild) {
+            Serial.println("sendTo");
             buildStatus = this->buildForSending();
         }
 
@@ -136,11 +137,9 @@ class SNMPTrap : public SNMPPacket {
         int length = packet->serialise(_packetBuffer, MAX_SNMP_PACKET_LENGTH);
 
         if(length <= 0) return false;
-
         _udp->beginPacket(ip, _TrapUDPport);
         _udp->write(_packetBuffer, length);
-        return _udp->endPacket();
-    }
+        return _udp->endPacket();    }
 
   protected:
     std::list<ValueCallback*> callbacks;

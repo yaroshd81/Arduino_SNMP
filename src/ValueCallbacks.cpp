@@ -63,7 +63,7 @@ SNMP_ERROR_STATUS ValueCallback::setValueForCallback(ValueCallback* callback, co
     }
 
     SNMP_ERROR_STATUS valid = callback->setTypeWithValue(value.get());
-
+    SNMP_LOGD("Setting value for callback of OID: %s\n", callback->OID->string().c_str());
     if(valid == NO_ERROR){
         callback->setOccurred = true;
     }
@@ -91,8 +91,15 @@ SNMP_ERROR_STATUS IntegerCallback::setTypeWithValue(BER_CONTAINER* rawValue){
         // Apple local division if callback was asked to
         // val->_value /= this->modifier;
     }
-    *this->value = val->_value;
+    SNMP_LOGD("Setting value for callback of OID: %d\n", val->_value);
 
+    if ((this->maxValue > this->minValue) && ((val->_value > this->maxValue) || (val->_value < this->minValue)))
+    {
+        return INCONSISTENT_VALUE;
+    }
+    
+    *this->value = val->_value;
+    
     return NO_ERROR;
 }
 
@@ -108,7 +115,7 @@ SNMP_ERROR_STATUS TimestampCallback::setTypeWithValue(BER_CONTAINER* rawValue){
 
     TimestampType* val = static_cast<TimestampType*>(rawValue);
     *this->value = val->_value;
-
+    SNMP_LOGD("Setting value for callback of OID: %d\n", val->_value);
     return NO_ERROR;
 }
 
@@ -131,6 +138,10 @@ SNMP_ERROR_STATUS StringCallback::setTypeWithValue(BER_CONTAINER* rawValue){
 
 std::shared_ptr<BER_CONTAINER> ReadOnlyStringCallback::buildTypeWithValue(){
     return std::make_shared<OctetType>(this->value);
+}
+
+std::shared_ptr<BER_CONTAINER> IpAddressCallback::buildTypeWithValue(){
+    return std::make_shared<NetworkAddress>(*this->value);
 }
 
 std::shared_ptr<BER_CONTAINER> OpaqueCallback::buildTypeWithValue(){
@@ -169,6 +180,7 @@ SNMP_ERROR_STATUS Counter32Callback::setTypeWithValue(BER_CONTAINER* rawValue){
 
     Counter32* val = static_cast<Counter32*>(rawValue);
     *this->value = val->_value;
+    SNMP_LOGD("Setting value for callback of OID: %d\n", val->_value);
     return NO_ERROR;
 }
 
@@ -184,7 +196,7 @@ SNMP_ERROR_STATUS Guage32Callback::setTypeWithValue(BER_CONTAINER* rawValue){
 
     Guage* val = static_cast<Guage*>(rawValue);
     *this->value = val->_value;
-
+    SNMP_LOGD("Setting value for callback of OID: %d\n", val->_value);
     return NO_ERROR;
 }
 
@@ -200,7 +212,7 @@ SNMP_ERROR_STATUS Counter64Callback::setTypeWithValue(BER_CONTAINER* rawValue){
 
     Counter64* val = static_cast<Counter64*>(rawValue);
     *this->value = val->_value;
-
+    SNMP_LOGD("Setting value for callback of OID: %d\n", val->_value);
     return NO_ERROR;
 }
 
